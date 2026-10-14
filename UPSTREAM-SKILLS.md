@@ -25,3 +25,13 @@ The Novoads entrypoint contains some historical link-label/file-map inconsistenc
 ## Updating
 
 Compare with the pinned commits before updating; preserve local customizations and the original licenses. The import does not auto-update from upstream.
+
+## Local organization (2026-10-14)
+
+The active SKILL.md entrypoints for analyze-video, copy-editing, video and novoads-api are now local adapters. Their original entrypoints are preserved verbatim as UPSTREAM.md beside each adapter; supporting references, evaluations and licenses remain included. Original imported evaluations have not been rerun against these adapters and are not validation evidence for the local workflows.
+
+analyze-video now defaults to reference-video learning rather than a paid advertising formula. copy-editing is scoped to marketing copy; novoads-api requires explicit service intent. The local extraction script uses awk instead of bc, validates inputs and refuses reused generated output paths.
+
+Upstream snapshots are historical reference, not executable local instructions. Missing upstream paths include scripts/setup.sh, scripts/check-novoads-env.sh, shared/references/craft.md and shared model/caption/image-ad workflows, as well as the previously documented sibling skills. Do not treat them as installed. Active local entrypoints do not depend on those missing files. Optional routes must use capabilities actually present in the current session.
+
+example-skill and skill-template have moved to templates/ so they do not compete with active skills. Production defaults live in references/production-defaults.md. Static validation does not establish paid API availability, model quality, or actual platform performance.

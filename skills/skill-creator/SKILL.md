@@ -1,44 +1,26 @@
 ---
 name: skill-creator
-description: Create new skills, modify and improve existing skills, and measure skill performance. Use when users want to create a skill from scratch, edit, or optimize an existing skill, run evals to test a skill, benchmark skill performance with variance analysis, or optimize a skill's description for better triggering accuracy.
+description: 创建、整理、优化和检查本仓库的技能，修复触发范围、任务流程、引用路径、依赖和验收标准。用于修改 Skill、整理技能仓库和检查技能能否可靠执行。
 ---
 
-# Skill Creator
+# 技能创建与整理
 
-A skill for creating new skills and iteratively improving them.
+先读根目录 AGENTS.md、README.md 和待修改技能。理解实际使用案例与用户当前目标；已有上下文足够时直接处理。
 
-At a high level, the process of creating a skill goes like this:
+## 流程
+1. 确定输入、输出、触发条件和排除范围。与现有技能重叠时先明确路由，不新增同义入口。
+2. SKILL.md 以 YAML 的 name、description 开头。名称为小写字母/数字/连字符，与目录一致；description 明确任务和边界。
+3. 正文写可执行步骤、条件分支、工具缺失时的降级及验收。把长文档和模型特定资料放入参考文件，按需读取。
+4. 用户要求动作时执行；只要分析时先交付分析。不能把“固定 SOP”理解成禁止必要判断。
+5. 修改上游内容时保留来源、许可证和原始快照，记录本地适配；不假定缺失的脚本、参考或服务已存在。
+6. 运行根目录 scripts/validate_skills.py；新增或修改脚本时实际执行正常及相关失败路径。
+7. 用真实或合成案例检查技能行为：输入不足、正常任务、相邻技能不应触发的任务。评估用独立输入，区分静态检查、案例测试和真实媒体/生成测试。
+8. 检查差异，确认范围与用户授权一致；同步 Git 后才说明已保存。保留可回退的提交，不无故覆写并发更新。
 
-- Decide what you want the skill to do and roughly how it should do it
-- Write a draft of the skill
-- Create a few test prompts and run the agent with the skill on them
-- Help the user evaluate the results
-- Rewrite the skill based on feedback
-- Repeat until satisfied
+## 验收
+- 元数据合法，名称唯一，活动入口无本地失效链接。
+- 每个核心步骤具备实际能力或明确降级。
+- 用户当前指令覆盖默认值，技能边界不争抢任务。
+- 测试结果有证据；未跑通的外部服务不得称为已验证。
 
-## 快速体验方式（推荐你现在就试）
-
-直接对 Agent 说：
-
-> 使用 skill-creator 帮我创建一个简单的 Skill，用来总结一篇文章的要点
-
-或者：
-
-> 看看 skills/skill-creator/SKILL.md 里面的内容，解释一下什么是 Skill
-
-## 核心结构
-
-一个 Skill 就是一个文件夹 + SKILL.md：
-
-```
-skill-name/
-├── SKILL.md          # 必须：YAML 头 + 步骤说明
-└── （可选）scripts/ references/ assets/
-```
-
-YAML 头必须有 name 和 description。
-
-## 来源
-
-官方仓库：anthropics/skills
-https://github.com/anthropics/skills/tree/main/skills/skill-creator
+示例和空白模板放在 templates/，避免混入日常技能入口。不要为单次使用复制一套重复技能。

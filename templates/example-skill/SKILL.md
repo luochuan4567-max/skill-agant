@@ -17,5 +17,5 @@ description: 一个基础的 Skill 模板，用于演示如何编写 SKILL.md
 
 ## 注意事项
 
-- Skill 是固定 SOP，尽量不要含有需要动态判断的逻辑
-- 具体的判断和人设放在 AGENTS.md 里
+- Skill 可以包含条件判断、异常处理和明确的验收标准
+- 共享路由和通用行为放在 AGENTS.md，任务判断写在对应 Skill

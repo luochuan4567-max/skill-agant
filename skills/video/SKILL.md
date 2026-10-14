@@ -1,59 +1,19 @@
 ---
 name: video
-description: Analyze a video (Loom, YouTube, Vimeo, TikTok, Instagram, X/Twitter, Twitch, Dailymotion, Facebook, direct URL, or local file) — transcript, key frames, OCR text, metadata, annotated timeline — and answer questions about it with timestamps.
-argument-hint: "<video-url-or-path> [question]"
-allowed-tools: Bash, Read, mcp__video-analyzer
-license: MIT
-metadata:
-  homepage: https://github.com/guimatheus92/mcp-video-analyzer
+description: 读取用户指定视频的转写、关键帧、OCR、元数据与时间轴，用时间戳回答内容问题。适用于本地视频或可访问的公开视频链接；优秀案例拆解学习在读取后交给 analyze-video。
 ---
 
-Analyze the given video and answer the user's question (or summarize it if no question was asked). Always cite timestamps (`M:SS`) in your answer.
+# 视频内容读取
 
-## Route A — video-analyzer MCP tools available (preferred)
+先读取 [上游运行流程](UPSTREAM.md)，使用当前可用的视频分析工具；没有对应 MCP 时再检查 CLI 的实际依赖。
+先确认视频路径/链接及问题，不安装或连接与任务无关的服务。
 
-If the `video-analyzer` MCP server is connected in this session, call its tools directly — do not use the CLI:
+- 本地 CLI 要求 Node.js 22.12+；公开平台下载通常需 yt-dlp；语音转写需配置后端。工具存在与后端可用是两件事。
+- 上游示例使用 @latest，存在版本变化；实际运行记录包版本和选项。没有完成运行不能声称读过视频。
+- 读取 warnings、转写和所需关键帧；时间戳与证据对应。缺少转写不能编造对白，缺少图片不能描述未见细节。
+- 全片总结读取全片；少量关键帧不能验证完整动作。快速运动补取连续帧；小字 OCR 使用足够分辨率。
+- 静音、语音识别失败、下载失败分别说明；部分结果可以交付，但明确覆盖范围。
+- 用户要拆解学习时把已读取内容交给 [analyze-video](../analyze-video/SKILL.md)，不默认改写样稿。
+- 无法读取时交付具体缺口与可执行的下一步，不尝试绕过访问限制。
 
-- General question or no question → `analyze_video` (detail `"standard"`)
-- "What happens at X:XX" / a specific moment → `analyze_moment` (time range) or `get_frame_at`
-- Question answerable from speech alone → `get_transcript` (fast, no download)
-- Title / duration / views / comments only → `get_metadata` (no download)
-- Motion or fast UI changes → `get_frame_burst`
-
-For subsecond motion, use fractional bounds (for example, `0:01.1` to `0:01.3`).
-FFmpeg burst extraction returns up to the requested count of real source frames;
-it does not duplicate frames when the requested rate exceeds the source rate.
-Preserve fractional timestamps when supplied. Browser fallback uses fractional
-seek targets, but those are not measured source-frame presentation timestamps.
-
-**Dense UI capture** (terminal, dashboard, IDE, spreadsheet — the meaning is in small text): pass `maxWidth` on any of these tools. Emitted frames are capped at 800 px wide by default, which turns a 1920×1080 screencast into 800×450 and drops a 15 px UI font below what a vision model can read. `maxWidth: 0` keeps the source resolution; a value like `1568` is the middle ground. Native frames cost several times more context, so raise it for the close read, not for the overview.
-
-`get_frame_burst` returns a JSON text block containing
-`{ frameCount, from, to, warnings, frames: [{ time, timingOrigin }] }`, followed
-by images in exactly the same order as `frames`. `timingOrigin: "source-pts"`
-means measured video-relative FFmpeg presentation time; `"seek-target"` means
-requested browser seek time. Empty/degraded results contain `frames: []`.
-
-## Route B — no MCP server (any agent with a shell)
-
-Run the one-shot CLI via Bash (first run downloads the npm package — slow is not broken; progress streams on stderr):
-
-```bash
-npx -y mcp-video-analyzer@latest analyze "<video-url-or-path>"
-```
-
-stdout is a single JSON document: `metadata`, `transcript` (timestamped entries), `ocrResults` (on-screen text), `timeline`, `warnings`, and `frames` — an array of `{ time, filePath, mimeType }` pointing to JPEG key frames on disk. Then:
-
-1. Parse the JSON from stdout.
-2. Read the `frames[].filePath` images (in parallel) when the question needs visuals.
-3. Answer from transcript + OCR + frames, citing timestamps.
-
-Useful flags: `--detail brief|standard|detailed` (brief = metadata + transcript only, no frame extraction — the fast/cheap path), `--fields metadata,transcript` (filters the emitted JSON only; frames are still computed at standard detail), `--max-frames <1-60>`, `--max-width <px>` (frame width cap, default 800; `0` keeps source resolution — use it for dense UI captures whose payload is small text), `--language <code>` (force transcription language), `--out <dir>` (where frames are copied), `--force-refresh`. Run `npx -y mcp-video-analyzer@latest analyze --help` for the full list.
-
-## Prerequisites & degradation
-
-- Node.js 22.12+ (required). `ffmpeg` is bundled — no install needed.
-- Platform URLs (YouTube, Instagram, TikTok, …) require `yt-dlp` on PATH; direct `.mp4/.webm/.mov` URLs and local files work without it. Loom transcript, metadata, and comments need no `yt-dlp` either. Loom **frames** usually do — Loom serves most videos as separate DASH video+audio streams that only `yt-dlp` fetches and merges; a CDN fallback covers some videos without it.
-- The tool never fails on partial results: the `warnings` array carries actionable hints (yt-dlp install, `YTDLP_COOKIES_FROM_BROWSER` for Instagram/age-restricted, missing Whisper backend). Relay relevant warnings to the user instead of treating them as errors.
-- An empty transcript alongside a "silent audio" warning means the video genuinely has no speech (common for muted Reels/Stories) — that is content, not a failure.
-- Only `http(s)` URLs to **public** addresses are accepted. A URL on `localhost`, a private/LAN range, a `.local` name, a UNC share, or a non-HTTP scheme is rejected up front with a message saying so — that is a deliberate refusal, not a transient error, so do not retry it or try to work around it. When the user really does want a video from their own network, tell them to restart the server with `MCP_ALLOW_PRIVATE_URLS=1`. Cloud metadata endpoints stay blocked even then.
+默认输出直接回答、证据时间戳和影响结论的缺口；不把所有工具输出原样堆给用户。

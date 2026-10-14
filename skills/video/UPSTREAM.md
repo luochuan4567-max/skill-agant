@@ -1,0 +1,59 @@
+---
+name: video
+description: Analyze a video (Loom, YouTube, Vimeo, TikTok, Instagram, X/Twitter, Twitch, Dailymotion, Facebook, direct URL, or local file) — transcript, key frames, OCR text, metadata, annotated timeline — and answer questions about it with timestamps.
+argument-hint: "<video-url-or-path> [question]"
+allowed-tools: Bash, Read, mcp__video-analyzer
+license: MIT
+metadata:
+  homepage: https://github.com/guimatheus92/mcp-video-analyzer
+---
+
+Analyze the given video and answer the user's question (or summarize it if no question was asked). Always cite timestamps (`M:SS`) in your answer.
+
+## Route A — video-analyzer MCP tools available (preferred)
+
+If the `video-analyzer` MCP server is connected in this session, call its tools directly — do not use the CLI:
+
+- General question or no question → `analyze_video` (detail `"standard"`)
+- "What happens at X:XX" / a specific moment → `analyze_moment` (time range) or `get_frame_at`
+- Question answerable from speech alone → `get_transcript` (fast, no download)
+- Title / duration / views / comments only → `get_metadata` (no download)
+- Motion or fast UI changes → `get_frame_burst`
+
+For subsecond motion, use fractional bounds (for example, `0:01.1` to `0:01.3`).
+FFmpeg burst extraction returns up to the requested count of real source frames;
+it does not duplicate frames when the requested rate exceeds the source rate.
+Preserve fractional timestamps when supplied. Browser fallback uses fractional
+seek targets, but those are not measured source-frame presentation timestamps.
+
+**Dense UI capture** (terminal, dashboard, IDE, spreadsheet — the meaning is in small text): pass `maxWidth` on any of these tools. Emitted frames are capped at 800 px wide by default, which turns a 1920×1080 screencast into 800×450 and drops a 15 px UI font below what a vision model can read. `maxWidth: 0` keeps the source resolution; a value like `1568` is the middle ground. Native frames cost several times more context, so raise it for the close read, not for the overview.
+
+`get_frame_burst` returns a JSON text block containing
+`{ frameCount, from, to, warnings, frames: [{ time, timingOrigin }] }`, followed
+by images in exactly the same order as `frames`. `timingOrigin: "source-pts"`
+means measured video-relative FFmpeg presentation time; `"seek-target"` means
+requested browser seek time. Empty/degraded results contain `frames: []`.
+
+## Route B — no MCP server (any agent with a shell)
+
+Run the one-shot CLI via Bash (first run downloads the npm package — slow is not broken; progress streams on stderr):
+
+```bash
+npx -y mcp-video-analyzer@latest analyze "<video-url-or-path>"
+```
+
+stdout is a single JSON document: `metadata`, `transcript` (timestamped entries), `ocrResults` (on-screen text), `timeline`, `warnings`, and `frames` — an array of `{ time, filePath, mimeType }` pointing to JPEG key frames on disk. Then:
+
+1. Parse the JSON from stdout.
+2. Read the `frames[].filePath` images (in parallel) when the question needs visuals.
+3. Answer from transcript + OCR + frames, citing timestamps.
+
+Useful flags: `--detail brief|standard|detailed` (brief = metadata + transcript only, no frame extraction — the fast/cheap path), `--fields metadata,transcript` (filters the emitted JSON only; frames are still computed at standard detail), `--max-frames <1-60>`, `--max-width <px>` (frame width cap, default 800; `0` keeps source resolution — use it for dense UI captures whose payload is small text), `--language <code>` (force transcription language), `--out <dir>` (where frames are copied), `--force-refresh`. Run `npx -y mcp-video-analyzer@latest analyze --help` for the full list.
+
+## Prerequisites & degradation
+
+- Node.js 22.12+ (required). `ffmpeg` is bundled — no install needed.
+- Platform URLs (YouTube, Instagram, TikTok, …) require `yt-dlp` on PATH; direct `.mp4/.webm/.mov` URLs and local files work without it. Loom transcript, metadata, and comments need no `yt-dlp` either. Loom **frames** usually do — Loom serves most videos as separate DASH video+audio streams that only `yt-dlp` fetches and merges; a CDN fallback covers some videos without it.
+- The tool never fails on partial results: the `warnings` array carries actionable hints (yt-dlp install, `YTDLP_COOKIES_FROM_BROWSER` for Instagram/age-restricted, missing Whisper backend). Relay relevant warnings to the user instead of treating them as errors.
+- An empty transcript alongside a "silent audio" warning means the video genuinely has no speech (common for muted Reels/Stories) — that is content, not a failure.
+- Only `http(s)` URLs to **public** addresses are accepted. A URL on `localhost`, a private/LAN range, a `.local` name, a UNC share, or a non-HTTP scheme is rejected up front with a message saying so — that is a deliberate refusal, not a transient error, so do not retry it or try to work around it. When the user really does want a video from their own network, tell them to restart the server with `MCP_ALLOW_PRIVATE_URLS=1`. Cloud metadata endpoints stay blocked even then.
